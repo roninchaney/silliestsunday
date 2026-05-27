@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Kalshi Sports Predictor</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
@@ -181,6 +181,54 @@ header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;ba
 .note-strip{margin-top:1rem;padding:10px 14px;border:1px solid var(--border);border-left:2px solid var(--dot-amber-dim);border-radius:2px;background:#0a0a0a;font-size:11px;color:var(--muted);line-height:1.7}
 .refresh-btn{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.1em;padding:4px 10px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;transition:all 0.15s}
 .refresh-btn:hover{color:var(--dot-amber);border-color:var(--dot-amber-dim)}
+
+/* ── MOBILE ── */
+@media(max-width:700px){
+  header{padding:0.75rem 1rem;flex-wrap:wrap;gap:8px}
+  .logo{font-size:0.8rem;letter-spacing:0.08em}
+  .header-right{gap:6px}
+  .header-date{display:none}
+  .live-tag{display:none}
+  .layout{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:calc(100vh - 50px)}
+  .sidebar{border-right:none;border-bottom:1px solid var(--border);max-height:42vh;overflow-y:auto}
+  .sidebar-header{padding:0.75rem 1rem 0.6rem}
+  .games-list{padding:0.5rem}
+  .game-card{padding:10px}
+  .card-matchup{font-size:12px}
+  .main{height:auto;overflow-y:visible}
+  .result-view{padding:1rem}
+  .scoreboard-panel{padding:1rem}
+  .sb-header{flex-direction:column;gap:8px;margin-bottom:1rem}
+  .sb-matchup{font-size:1.1rem}
+  .score-number{font-size:2.2rem}
+  .score-displays{gap:8px}
+  .info-strip{gap:5px}
+  .info-cell{padding:5px 8px}
+  .info-cell-val{font-size:11px}
+  .panel{padding:1rem}
+  .panel-label{flex-direction:column;align-items:flex-start;gap:8px}
+  .inj-mode-row{width:100%}
+  .mode-btn{flex:1;text-align:center}
+  .inj-add-row{flex-wrap:wrap}
+  .inj-input.name{min-width:100%;margin-bottom:4px}
+  .ev-grid{grid-template-columns:1fr 1fr 1fr;gap:5px}
+  .ev-cell{padding:8px 6px}
+  .ev-cell-val{font-size:0.85rem}
+  .ev-cell-label{font-size:7px;letter-spacing:0.1em}
+  .price-pills{gap:5px}
+  .price-pill{padding:6px 10px;font-size:9px}
+  .custom-row{flex-wrap:wrap;gap:6px}
+  .kalshi-price-row{flex-wrap:wrap;gap:6px}
+  .sig-bar-wrap{display:none}
+  .sig-impact{min-width:40px;font-size:10px}
+  .sig-name{font-size:11px}
+  .sig-val{font-size:9px}
+  .score-box-label{font-size:8px}
+  .score-team{font-size:9px}
+  .toggle-btn{padding:6px 12px;font-size:9px}
+  .team-toggle{width:100%}
+  .toggle-btn{flex:1;text-align:center}
+}
 </style>
 </head>
 <body>
@@ -265,11 +313,11 @@ header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;ba
       <div class="panel">
         <div class="panel-label"><span>KALSHI TRADE CALCULATOR</span></div>
         <div id="kalshi-live-row"></div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Select or enter the YES contract price on Kalshi:</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Select or enter the YES contract price on Kalshi (cost per $1 payout):</div>
         <div class="price-pills" id="price-pills"></div>
         <div class="custom-row">
-          <label>Or enter price (¢):</label>
-          <input type="number" id="custom-price" min="1" max="99" placeholder="e.g. 55" oninput="onCustomPrice()">
+          <label>Or enter price ($):</label>
+          <input type="number" id="custom-price" min="0.01" max="0.99" step="0.01" placeholder="e.g. 0.55" oninput="onCustomPrice()">
         </div>
         <div class="ev-grid">
           <div class="ev-cell"><div class="ev-cell-label">EXP VALUE</div><div class="ev-cell-val" id="ev-val">—</div></div>
@@ -288,7 +336,7 @@ header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;ba
 // ─────────────────────────────────────────────
 // CONFIG — paste your key from the-odds-api.com
 // ─────────────────────────────────────────────
-const ODDS_API_KEY = "9a27f861ca25a79d6d545ebac5a26d4c";
+const ODDS_API_KEY = "YOUR_ODDS_API_KEY";
 const ODDS_BASE    = "https://api.the-odds-api.com/v4";
 
 // ESPN team ID maps for injury fetching
@@ -648,7 +696,7 @@ function renderGames() {
         <span class="mini-pct">${prob}%</span>
         <span class="mini-team right">${g.home}</span>
       </div>
-      ${kalshiPrice?`<div style="margin-top:6px"><span class="kalshi-pill">KALSHI ~${kalshiPrice}¢</span></div>`:""}
+      ${kalshiPrice?`<div style="margin-top:6px"><span class="kalshi-pill">KALSHI ~$${(kalshiPrice/100).toFixed(2)}</span></div>`:""}
     </div>`;
   }).join("");
 }
@@ -717,10 +765,11 @@ function renderSignalsAndScore() {
   const kalshiRow=document.getElementById("kalshi-live-row");
   if (g.homeOdds) {
     const homeImp=Math.round(oddsToProb(selectedTeam==="home"?g.homeOdds:g.awayOdds)*100);
+    const homeImpDollar=(homeImp/100).toFixed(2);
     kalshiRow.innerHTML=`<div class="kalshi-price-row">
       <span class="kalshi-price-label">Live market price (${myTeam} YES):</span>
-      <span class="kalshi-live-price">${homeImp}¢</span>
-      <span class="kalshi-price-tag">via DraftKings proxy · auto-applied</span>
+      <span class="kalshi-live-price">$${homeImpDollar}</span>
+      <span class="kalshi-price-tag">costs $${homeImpDollar} · pays $1.00 if wins · via DraftKings proxy</span>
     </div>`;
     if (!activePrice || activePrice === Math.round(oddsToProb(selectedTeam==="home"?g.awayOdds:g.homeOdds)*100)) {
       activePrice = homeImp;
@@ -730,7 +779,7 @@ function renderSignalsAndScore() {
   const near=[10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90].filter(p=>Math.abs(p-prob)<=22);
   document.getElementById("price-pills").innerHTML=near.map(p=>{
     const isLive=g.homeOdds&&Math.abs(p-Math.round(oddsToProb(selectedTeam==="home"?g.homeOdds:g.awayOdds)*100))===0;
-    return `<button class="price-pill${activePrice===p?" sel":""}${isLive?" kalshi-auto":""}" onclick="setPillPrice(${p})">${p}¢${isLive?" ★":""}</button>`;
+    return `<button class="price-pill${activePrice===p?" sel":""}${isLive?" kalshi-auto":""}" onclick="setPillPrice(${p})">$${(p/100).toFixed(2)}${isLive?" ★":""}</button>`;
   }).join("");
 
   updateEV(prob);
@@ -757,8 +806,12 @@ function setPillPrice(p) {
 }
 
 function onCustomPrice() {
-  const val=parseInt(document.getElementById("custom-price").value);
-  if(val>=1&&val<=99){activePrice=val;document.querySelectorAll(".price-pill").forEach(el=>el.classList.remove("sel"));updateEV(predict(activeGame,selectedTeam).prob);}
+  const val=parseFloat(document.getElementById("custom-price").value);
+  if(val>=0.01&&val<=0.99){
+    activePrice=Math.round(val*100);
+    document.querySelectorAll(".price-pill").forEach(el=>el.classList.remove("sel"));
+    updateEV(predict(activeGame,selectedTeam).prob);
+  }
 }
 
 function updateEV(prob) {
@@ -772,7 +825,8 @@ function updateEV(prob) {
   const ev=p*(1-q)-(1-p)*q;
   const evC=Math.round(ev*100),edge=Math.round((p-q)*100);
   const evEl=document.getElementById("ev-val");
-  evEl.textContent=(evC>=0?"+":"")+evC+"¢"; evEl.className="ev-cell-val "+(evC>4?"ev-pos":evC<-4?"ev-neg":"ev-neu");
+  const evDollar=(ev>=0?"+":"")+`$${Math.abs(ev).toFixed(2)}`;
+  evEl.textContent=evDollar+" per $1"; evEl.className="ev-cell-val "+(evC>4?"ev-pos":evC<-4?"ev-neg":"ev-neu");
   const edEl=document.getElementById("edge-val");
   edEl.textContent=(edge>=0?"+":"")+edge+"%"; edEl.className="ev-cell-val "+(edge>4?"ev-pos":edge<-4?"ev-neg":"ev-neu");
   let v,vc,fw,fc,sub;
