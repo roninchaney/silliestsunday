@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kalshi Sports Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0a; --panel:#111; --board:#0d0d0d; --border:#2a2a2a; --border2:#3a3a3a;
+  --dot-off:#1a1a1a; --dot-amber:#ff9500; --dot-amber-dim:#3d2400;
+  --dot-red:#ff3b30; --dot-green:#30d158; --dot-white:#e8e8e8; --muted:#666;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);background-image:radial-gradient(ellipse at 50% 0%,#1a0a00 0%,transparent 60%);color:var(--dot-white);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:9999}
+header{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);background:var(--panel);position:relative}
+header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--dot-amber),transparent);opacity:0.4}
+.logo{font-family:'Orbitron',monospace;font-size:1rem;font-weight:900;letter-spacing:0.15em;color:var(--dot-amber);text-shadow:0 0 20px rgba(255,149,0,0.5);display:flex;align-items:center;gap:12px}
+.logo-blink{width:8px;height:8px;border-radius:50%;background:var(--dot-red);box-shadow:0 0 8px var(--dot-red);animation:blink 1.1s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.live-tag{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.2em;color:var(--dot-red);border:1px solid var(--dot-red);padding:3px 8px;border-radius:2px;text-shadow:0 0 8px var(--dot-red)}
+.header-date{font-size:11px;color:var(--muted);letter-spacing:0.05em}
+.api-status{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.1em;padding:3px 8px;border-radius:2px;border:1px solid var(--border2);color:var(--muted)}
+.api-status.ok{color:var(--dot-green);border-color:rgba(48,209,88,0.3)}
+.api-status.err{color:var(--dot-red);border-color:rgba(255,59,48,0.3)}
+.api-status.loading{color:var(--dot-amber);border-color:rgba(255,149,0,0.3)}
+.layout{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 57px)}
+.sidebar{border-right:1px solid var(--border);overflow-y:auto;background:var(--panel)}
+.sidebar::-webkit-scrollbar{width:3px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--dot-amber-dim)}
+.sidebar-header{padding:1rem 1.25rem 0.75rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:10}
+.section-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.2em;color:var(--dot-amber);text-transform:uppercase;margin-bottom:10px;opacity:0.8}
+.filter-row{display:flex;gap:6px;flex-wrap:wrap}
+.filter-btn{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.1em;padding:5px 12px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase;border-radius:2px}
+.filter-btn:hover{color:var(--dot-amber);border-color:var(--dot-amber-dim)}
+.filter-btn.active{background:var(--dot-amber-dim);color:var(--dot-amber);border-color:var(--dot-amber)}
+.games-list{padding:0.75rem}
+.game-card{border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;background:var(--board);position:relative;overflow:hidden}
+.game-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:transparent;transition:background 0.15s}
+.game-card:hover{border-color:var(--border2);background:#141414}
+.game-card:hover::before{background:var(--dot-amber-dim)}
+.game-card.active{border-color:var(--dot-amber);background:#141200}
+.game-card.active::before{background:var(--dot-amber);box-shadow:0 0 8px var(--dot-amber)}
+.card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.league-pill{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:0.15em;padding:2px 7px;border-radius:1px;font-weight:700}
+.league-pill.nba{color:#60a5fa;border:1px solid rgba(96,165,250,0.3);background:rgba(96,165,250,0.08)}
+.league-pill.nfl{color:#a78bfa;border:1px solid rgba(167,139,250,0.3);background:rgba(167,139,250,0.08)}
+.card-time{font-size:10px;color:var(--muted)}
+.card-matchup{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--dot-white);letter-spacing:0.05em;margin-bottom:2px}
+.card-label{font-size:10px;color:var(--muted);margin-bottom:10px}
+.mini-scoreboard{display:flex;align-items:center;gap:6px}
+.mini-team{font-size:9px;color:var(--muted);width:28px}
+.mini-team.right{text-align:right}
+.mini-bar-track{flex:1;height:4px;background:var(--dot-off);border-radius:1px;overflow:hidden}
+.mini-bar-fill{height:100%;border-radius:1px}
+.mini-pct{font-family:'Orbitron',monospace;font-size:9px;color:var(--dot-amber);width:28px;text-align:right}
+.kalshi-pill{font-family:'Orbitron',monospace;font-size:8px;padding:2px 6px;border-radius:2px;background:rgba(48,209,88,0.1);border:1px solid rgba(48,209,88,0.25);color:var(--dot-green);margin-top:4px;display:inline-block}
+.main{overflow-y:auto;background:var(--bg)}
+.main::-webkit-scrollbar{width:3px}
+.main::-webkit-scrollbar-thumb{background:var(--dot-amber-dim)}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);gap:16px;text-align:center}
+.empty-icon{font-family:'Orbitron',monospace;font-size:2rem;color:var(--dot-amber-dim);letter-spacing:0.1em}
+.empty-state p{font-size:11px;letter-spacing:0.1em;color:var(--dot-amber-dim);text-transform:uppercase}
+.skeleton-card{border:1px solid var(--border);border-radius:3px;padding:12px;margin-bottom:8px;background:var(--board);animation:shimmer 1.5s ease-in-out infinite}
+@keyframes shimmer{0%,100%{opacity:0.4}50%{opacity:0.8}}
+.skeleton-line{height:10px;background:var(--border2);border-radius:2px;margin-bottom:8px}
+.result-view{display:none;padding:1.5rem 2rem;animation:fadeIn 0.2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.scoreboard-panel{background:var(--board);border:2px solid var(--border2);border-radius:4px;padding:1.5rem;margin-bottom:1.25rem;position:relative;overflow:hidden}
+.scoreboard-panel::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent,transparent 3px,rgba(0,0,0,0.15) 3px,rgba(0,0,0,0.15) 4px);pointer-events:none}
+.scoreboard-panel::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--dot-amber),transparent);opacity:0.3}
+.sb-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:12px}
+.sb-title{font-family:'Orbitron',monospace;font-size:11px;letter-spacing:0.2em;color:var(--dot-amber);text-transform:uppercase;opacity:0.7;margin-bottom:4px}
+.sb-matchup{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:900;color:var(--dot-white);letter-spacing:0.05em}
+.team-toggle{display:flex;border:1px solid var(--border2);border-radius:2px;overflow:hidden}
+.toggle-btn{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:0.1em;font-weight:700;padding:7px 16px;background:transparent;border:none;color:var(--muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase}
+.toggle-btn:hover{color:var(--dot-amber)}
+.toggle-btn.active{background:var(--dot-amber-dim);color:var(--dot-amber);text-shadow:0 0 10px rgba(255,149,0,0.6)}
+.score-displays{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:1rem}
+.score-box{background:#0a0a0a;border:1px solid var(--border2);border-radius:3px;padding:1rem;text-align:center}
+.score-box-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.score-number{font-family:'Orbitron',monospace;font-size:3rem;font-weight:900;line-height:1;letter-spacing:-0.02em}
+.score-number.win{color:var(--dot-green);text-shadow:0 0 20px rgba(48,209,88,0.4)}
+.score-number.lose{color:var(--dot-red);text-shadow:0 0 20px rgba(255,59,48,0.4)}
+.score-team{font-size:10px;color:var(--muted);margin-top:6px;letter-spacing:0.05em}
+.vs-divider{font-family:'Orbitron',monospace;font-size:11px;color:var(--border2)}
+.info-strip{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.info-cell{background:#0a0a0a;border:1px solid var(--border);border-radius:2px;padding:6px 14px;text-align:center}
+.info-cell-label{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:0.15em;color:var(--muted);text-transform:uppercase;margin-bottom:2px}
+.info-cell-val{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--dot-amber);text-shadow:0 0 8px rgba(255,149,0,0.4)}
+.panel{background:var(--board);border:1px solid var(--border2);border-radius:3px;padding:1.25rem;margin-bottom:1.25rem}
+.panel-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.2em;color:var(--dot-amber);text-transform:uppercase;opacity:0.7;margin-bottom:1rem;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.signal-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #181818}
+.signal-row:last-child{border-bottom:none}
+.sig-led{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sig-led.pos{background:var(--dot-green);box-shadow:0 0 5px var(--dot-green)}
+.sig-led.neg{background:var(--dot-red);box-shadow:0 0 5px var(--dot-red)}
+.sig-led.neu{background:var(--muted)}
+.sig-led.warn{background:var(--dot-amber);box-shadow:0 0 5px var(--dot-amber)}
+.sig-content{flex:1;min-width:0}
+.sig-name{font-size:12px;color:var(--dot-white)}
+.sig-val{font-size:10px;color:var(--muted);margin-top:1px}
+.sig-bar-wrap{width:50px}
+.sig-bar{height:3px;background:var(--dot-off);border-radius:1px;overflow:hidden}
+.sig-bar-fill{height:100%}
+.fill-pos{background:var(--dot-green)}
+.fill-neg{background:var(--dot-red)}
+.fill-neu{background:var(--muted)}
+.fill-warn{background:var(--dot-amber)}
+.sig-impact{font-family:'Orbitron',monospace;font-size:11px;font-weight:700;min-width:50px;text-align:right}
+.sig-impact.pos{color:var(--dot-green)}
+.sig-impact.neg{color:var(--dot-red)}
+.sig-impact.neu{color:var(--muted)}
+.sig-impact.warn{color:var(--dot-amber)}
+.inj-mode-row{display:flex;gap:6px}
+.mode-btn{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.08em;padding:5px 12px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;transition:all 0.15s;text-transform:uppercase}
+.mode-btn:hover{color:var(--dot-amber);border-color:var(--dot-amber-dim)}
+.mode-btn.active{background:var(--dot-amber-dim);color:var(--dot-amber);border-color:var(--dot-amber)}
+.spinner{display:inline-block;width:10px;height:10px;border:1px solid var(--border2);border-top-color:var(--dot-amber);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.inj-team-block{margin-bottom:1rem}
+.inj-team-block:last-child{margin-bottom:0}
+.inj-team-label{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.15em;color:var(--muted);margin-bottom:8px}
+.inj-add-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+.inj-input{font-family:'Share Tech Mono',monospace;font-size:12px;padding:6px 10px;border:1px solid var(--border2);border-radius:2px;background:var(--dot-off);color:var(--dot-white);outline:none}
+.inj-input:focus{border-color:var(--dot-amber)}
+.inj-input.name{flex:1;min-width:100px}
+.inj-select{font-family:'Share Tech Mono',monospace;font-size:11px;padding:6px 8px;border:1px solid var(--border2);border-radius:2px;background:var(--dot-off);color:var(--dot-white);outline:none;cursor:pointer}
+.inj-select:focus{border-color:var(--dot-amber)}
+.add-btn{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.08em;padding:6px 14px;border:1px solid var(--dot-amber);background:var(--dot-amber-dim);color:var(--dot-amber);cursor:pointer;border-radius:2px;white-space:nowrap;transition:all 0.15s}
+.add-btn:hover{background:rgba(255,149,0,0.2)}
+.inj-list{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.inj-tag{display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:2px;border:1px solid var(--border);background:#0a0a0a;font-size:11px}
+.inj-tag-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot-out{background:var(--dot-red);box-shadow:0 0 4px var(--dot-red)}
+.dot-doubtful{background:var(--dot-amber);box-shadow:0 0 4px var(--dot-amber)}
+.dot-questionable{background:#fbbf24}
+.dot-probable{background:#60a5fa}
+.inj-tag-name{flex:1}
+.inj-tag-status{font-family:'Orbitron',monospace;font-size:9px}
+.status-out{color:var(--dot-red)}
+.status-doubtful{color:var(--dot-amber)}
+.status-questionable{color:#fbbf24}
+.status-probable{color:#60a5fa}
+.inj-tag-usage{color:var(--muted);font-size:10px}
+.remove-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;transition:color 0.1s}
+.remove-btn:hover{color:var(--dot-red)}
+.no-inj-msg{font-size:11px;color:var(--muted);padding:4px 0}
+.inj-summary-row{display:flex;gap:16px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;flex-wrap:wrap}
+.inj-sum-item{display:flex;flex-direction:column;gap:2px}
+.inj-sum-label{font-size:10px;color:var(--muted)}
+.inj-sum-val{font-family:'Orbitron',monospace;font-size:12px;font-weight:700}
+.preset-hint{font-size:10px;color:var(--muted);margin-top:4px;margin-bottom:2px}
+/* Kalshi live price row */
+.kalshi-price-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;background:#0a0a0a;border:1px solid rgba(48,209,88,0.2);border-radius:3px}
+.kalshi-price-label{font-size:11px;color:var(--muted)}
+.kalshi-live-price{font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:900;color:var(--dot-green);text-shadow:0 0 10px rgba(48,209,88,0.4)}
+.kalshi-price-tag{font-size:10px;color:var(--muted)}
+.price-pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.price-pill{font-family:'Orbitron',monospace;font-size:10px;font-weight:700;padding:5px 12px;border:1px solid var(--border2);background:var(--dot-off);color:var(--muted);cursor:pointer;transition:all 0.15s;border-radius:2px}
+.price-pill:hover{color:var(--dot-amber);border-color:var(--dot-amber-dim)}
+.price-pill.sel{background:var(--dot-amber-dim);color:var(--dot-amber);border-color:var(--dot-amber);text-shadow:0 0 8px rgba(255,149,0,0.5)}
+.price-pill.kalshi-auto{border-color:rgba(48,209,88,0.5);color:var(--dot-green)}
+.price-pill.kalshi-auto.sel{background:rgba(48,209,88,0.1);border-color:var(--dot-green)}
+.custom-row{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;flex-wrap:wrap}
+.custom-row label{font-size:11px;color:var(--muted)}
+.custom-row input{width:80px;font-family:'Orbitron',monospace;font-size:12px;padding:6px 10px;border:1px solid var(--border2);border-radius:2px;background:var(--dot-off);color:var(--dot-amber);outline:none}
+.custom-row input:focus{border-color:var(--dot-amber)}
+.ev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}
+.ev-cell{background:#0a0a0a;border:1px solid var(--border);border-radius:3px;padding:10px 12px;text-align:center}
+.ev-cell-label{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:6px}
+.ev-cell-val{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:900}
+.ev-pos{color:var(--dot-green);text-shadow:0 0 12px rgba(48,209,88,0.5)}
+.ev-neg{color:var(--dot-red);text-shadow:0 0 12px rgba(255,59,48,0.5)}
+.ev-neu{color:var(--dot-amber);text-shadow:0 0 12px rgba(255,149,0,0.3)}
+.verdict-track{height:4px;background:var(--dot-off);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.verdict-fill-bar{height:100%;border-radius:2px;transition:width 0.5s,background 0.4s}
+.verdict-sub{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.1em;text-align:right}
+.note-strip{margin-top:1rem;padding:10px 14px;border:1px solid var(--border);border-left:2px solid var(--dot-amber-dim);border-radius:2px;background:#0a0a0a;font-size:11px;color:var(--muted);line-height:1.7}
+.refresh-btn{font-family:'Orbitron',monospace;font-size:9px;letter-spacing:0.1em;padding:4px 10px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;transition:all 0.15s}
+.refresh-btn:hover{color:var(--dot-amber);border-color:var(--dot-amber-dim)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="logo-blink"></div>KALSHI PREDICTOR</div>
+  <div class="header-right">
+    <span class="api-status loading" id="api-status">● LOADING</span>
+    <span class="live-tag">● LIVE DATA</span>
+    <button class="refresh-btn" onclick="refreshAll()">↺ REFRESH</button>
+    <span class="header-date" id="hdate"></span>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="section-label">League</div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">ALL</button>
+        <button class="filter-btn" onclick="setFilter('NBA',this)">NBA</button>
+        <button class="filter-btn" onclick="setFilter('NFL',this)">NFL</button>
+      </div>
+    </div>
+    <div class="games-list" id="games-list">
+      ${[1,2,3,4].map(()=>`<div class="skeleton-card"><div class="skeleton-line" style="width:40%"></div><div class="skeleton-line" style="width:80%"></div><div class="skeleton-line" style="width:60%"></div></div>`).join("")}
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">◎ ◎ ◎</div>
+      <p id="empty-msg">Loading live games...</p>
+    </div>
+    <div class="result-view" id="result-view">
+      <div class="scoreboard-panel">
+        <div class="sb-header">
+          <div>
+            <div class="sb-title">PREDICTION ANALYSIS</div>
+            <div class="sb-matchup" id="res-matchup"></div>
+            <div style="font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:0.05em" id="res-sub"></div>
+          </div>
+          <div class="team-toggle" id="team-toggle"></div>
+        </div>
+        <div class="score-displays">
+          <div class="score-box"><div class="score-box-label">WIN PROB</div><div class="score-number win" id="prob-win"></div><div class="score-team" id="prob-win-team"></div></div>
+          <div class="vs-divider">VS</div>
+          <div class="score-box"><div class="score-box-label">LOSS PROB</div><div class="score-number lose" id="prob-lose"></div><div class="score-team" id="prob-lose-team"></div></div>
+        </div>
+        <div class="info-strip" id="info-strip"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">
+          <span>INJURY REPORT</span>
+          <div class="inj-mode-row">
+            <button class="mode-btn active" id="mode-manual-btn" onclick="setInjMode('manual')">MANUAL</button>
+            <button class="mode-btn" id="mode-auto-btn" onclick="setInjMode('auto')">LIVE ESPN</button>
+          </div>
+        </div>
+        <div id="manual-injury-ui">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.6">Enter injured players from the official injury report. Usage % = how much of team offense they handle (star ~30, starter ~20, role ~10).</div>
+          <div id="home-inj-block" class="inj-team-block"></div>
+          <div style="height:1px;background:var(--border);margin:10px 0"></div>
+          <div id="away-inj-block" class="inj-team-block"></div>
+          <div class="inj-summary-row">
+            <div class="inj-sum-item"><span class="inj-sum-label">Home drag</span><span class="inj-sum-val" id="home-drag" style="color:var(--dot-red)">–0.0%</span></div>
+            <div class="inj-sum-item"><span class="inj-sum-label">Away drag</span><span class="inj-sum-val" id="away-drag" style="color:var(--dot-red)">–0.0%</span></div>
+            <div class="inj-sum-item"><span class="inj-sum-label">Net signal</span><span class="inj-sum-val" id="net-inj-signal" style="color:var(--muted)">±0.0%</span></div>
+          </div>
+        </div>
+        <div id="auto-injury-ui" style="display:none">
+          <div id="auto-inj-content" style="font-size:11px;color:var(--muted)">Click Fetch to pull live data from ESPN. Requires internet.</div>
+          <button class="add-btn" style="margin-top:12px" onclick="fetchESPN()">FETCH LIVE DATA</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label"><span>SIGNAL BREAKDOWN</span></div>
+        <div id="signals-list"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label"><span>KALSHI TRADE CALCULATOR</span></div>
+        <div id="kalshi-live-row"></div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Select or enter the YES contract price on Kalshi:</div>
+        <div class="price-pills" id="price-pills"></div>
+        <div class="custom-row">
+          <label>Or enter price (¢):</label>
+          <input type="number" id="custom-price" min="1" max="99" placeholder="e.g. 55" oninput="onCustomPrice()">
+        </div>
+        <div class="ev-grid">
+          <div class="ev-cell"><div class="ev-cell-label">EXP VALUE</div><div class="ev-cell-val" id="ev-val">—</div></div>
+          <div class="ev-cell"><div class="ev-cell-label">MODEL EDGE</div><div class="ev-cell-val" id="edge-val">—</div></div>
+          <div class="ev-cell"><div class="ev-cell-label">VERDICT</div><div class="ev-cell-val" id="verdict-val">—</div></div>
+        </div>
+        <div class="verdict-track"><div class="verdict-fill-bar" id="verdict-fill" style="width:50%;background:var(--border2)"></div></div>
+        <div class="verdict-sub" id="verdict-sub" style="color:var(--muted)"></div>
+        <div class="note-strip" id="note-strip"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG — paste your key from the-odds-api.com
+// ─────────────────────────────────────────────
+const ODDS_API_KEY = "YOUR_ODDS_API_KEY";
+const ODDS_BASE    = "https://api.the-odds-api.com/v4";
+
+// ESPN team ID maps for injury fetching
+const ESPN_NBA = {OKC:25,SAS:26,NYK:18,CLE:5,LAL:13,BOS:2,MIA:14,MIL:15,PHI:20,MIN:16,DEN:7,PHX:21,DAL:6,LAC:12,GSW:9,HOU:10,MEM:29,SAC:23,IND:11,ATL:1,CHI:4,DET:8,ORL:19,WAS:27,TOR:28,BKN:17,CHA:30,NOP:3,UTA:22,POR:22};
+const ESPN_NFL = {KC:12,BUF:2,PHI:21,DAL:6,SF:25,LAR:14,NE:17,GB:9,BAL:33,CIN:4,MIA:15,NYJ:20,LV:13,LAC:24,DEN:7,SEA:26,ARI:22,ATL:1,CAR:29,NO:18,TB:27,CHI:3,DET:8,GB:9,MIN:16,WAS:28,NYG:19,PIT:23,CLE:5,HOU:34,IND:11,JAX:30,TEN:10};
+
+// ─── STATE ───
+let GAMES = [];
+let filter = "all", activeGame = null, selectedTeam = "home", activePrice = null;
+let manualInjuries = {home:[], away:[]};
+let injuryMode = "manual";
+let espnCache = {}, oddsCache = {};
+let liveKalshiPrice = null; // fetched from Odds API for current game
+
+// ─── INIT ───
+document.getElementById("hdate").textContent = new Date().toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"}).toUpperCase();
+
+async function refreshAll() {
+  GAMES = [];
+  activeGame = null;
+  espnCache = {};
+  oddsCache = {};
+  document.getElementById("result-view").style.display = "none";
+  document.getElementById("empty-state").style.display = "flex";
+  document.getElementById("empty-msg").textContent = "Loading live games...";
+  document.getElementById("api-status").textContent = "● LOADING";
+  document.getElementById("api-status").className = "api-status loading";
+  renderSkeletons();
+  await loadGames();
+}
+
+function renderSkeletons() {
+  document.getElementById("games-list").innerHTML = [1,2,3,4].map(()=>`
+    <div class="skeleton-card">
+      <div class="skeleton-line" style="width:40%"></div>
+      <div class="skeleton-line" style="width:80%"></div>
+      <div class="skeleton-line" style="width:55%"></div>
+    </div>`).join("");
+}
+
+// ─── LOAD LIVE GAMES FROM THE ODDS API ───
+async function loadGames() {
+  if (ODDS_API_KEY === "YOUR_ODDS_API_KEY") {
+    document.getElementById("api-status").textContent = "● NO API KEY";
+    document.getElementById("api-status").className = "api-status err";
+    document.getElementById("empty-msg").textContent = "Add your Odds API key to index.html to load live games";
+    document.getElementById("games-list").innerHTML = `<div style="padding:1rem;font-size:11px;color:var(--dot-amber);line-height:1.8">
+      Open index.html and replace<br><code style="color:var(--dot-white)">YOUR_ODDS_API_KEY</code><br>with your key from<br>
+      <a href="https://the-odds-api.com" target="_blank" style="color:var(--dot-amber)">the-odds-api.com</a>
+    </div>`;
+    return;
+  }
+
+  try {
+    const sports = ["basketball_nba","americanfootball_nfl"];
+    const allGames = [];
+
+    for (const sport of sports) {
+      const url = `${ODDS_BASE}/sports/${sport}/odds/?apiKey=${ODDS_API_KEY}&regions=us&markets=h2h&oddsFormat=american&dateFormat=iso`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`API error ${resp.status}`);
+      const data = await resp.json();
+
+      data.forEach(event => {
+        const league = sport === "basketball_nba" ? "NBA" : "NFL";
+        const home = normalizeTeam(event.home_team, league);
+        const away = normalizeTeam(event.away_team, league);
+        const commence = new Date(event.commence_time);
+
+        // Extract Kalshi-proxy odds from bookmaker (use draftkings as proxy)
+        let homeOdds = null, awayOdds = null;
+        const dk = event.bookmakers?.find(b => b.key === "draftkings") || event.bookmakers?.[0];
+        if (dk) {
+          const h2h = dk.markets?.find(m => m.key === "h2h");
+          if (h2h) {
+            h2h.outcomes.forEach(o => {
+              const t = normalizeTeam(o.name, league);
+              if (t === home) homeOdds = o.price;
+              if (t === away) awayOdds = o.price;
+            });
+          }
+        }
+
+        allGames.push({
+          id: event.id,
+          league,
+          home, away,
+          label: league === "NBA" ? "NBA GAME" : "NFL GAME",
+          time: commence.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + " · " + commence.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}),
+          commence,
+          // Base model params — will be enriched from odds
+          homeSeed: null, awaySeed: null,
+          homeWins: null, awayWins: null,
+          homeStreak: 2, awayStreak: 2,
+          homeRtg: 110, awayRtg: 110,
+          rivalry: 0.5,
+          homeOdds, awayOdds,
+          note: `${away} @ ${home} · ${league} · ${commence.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}`
+        });
+      });
+    }
+
+    // Sort by date
+    allGames.sort((a,b) => a.commence - b.commence);
+    GAMES = allGames;
+
+    document.getElementById("api-status").textContent = `● ${GAMES.length} GAMES`;
+    document.getElementById("api-status").className = "api-status ok";
+    document.getElementById("empty-msg").textContent = "Select a game to run the model";
+
+    renderGames();
+  } catch(e) {
+    console.error(e);
+    document.getElementById("api-status").textContent = "● API ERROR";
+    document.getElementById("api-status").className = "api-status err";
+    document.getElementById("empty-msg").textContent = "Could not load games. Check API key and connection.";
+    document.getElementById("games-list").innerHTML = `<div style="padding:1rem;font-size:11px;color:var(--dot-red);line-height:1.8">
+      Failed to load games.<br>Check your API key and internet connection.<br><br>
+      <span style="color:var(--muted)">Error: ${e.message}</span>
+    </div>`;
+  }
+}
+
+// Convert full team name from API to abbreviation
+function normalizeTeam(name, league) {
+  const NBA_MAP = {"Oklahoma City Thunder":"OKC","San Antonio Spurs":"SAS","New York Knicks":"NYK","Cleveland Cavaliers":"CLE","Los Angeles Lakers":"LAL","Boston Celtics":"BOS","Miami Heat":"MIA","Milwaukee Bucks":"MIL","Philadelphia 76ers":"PHI","Minnesota Timberwolves":"MIN","Denver Nuggets":"DEN","Phoenix Suns":"PHX","Dallas Mavericks":"DAL","Los Angeles Clippers":"LAC","Golden State Warriors":"GSW","Houston Rockets":"HOU","Memphis Grizzlies":"MEM","Sacramento Kings":"SAC","Indiana Pacers":"IND","Atlanta Hawks":"ATL","Chicago Bulls":"CHI","Detroit Pistons":"DET","Orlando Magic":"ORL","Washington Wizards":"WAS","Toronto Raptors":"TOR","Brooklyn Nets":"BKN","Charlotte Hornets":"CHA","New Orleans Pelicans":"NOP","Utah Jazz":"UTA","Portland Trail Blazers":"POR"};
+  const NFL_MAP = {"Kansas City Chiefs":"KC","Buffalo Bills":"BUF","Philadelphia Eagles":"PHI","Dallas Cowboys":"DAL","San Francisco 49ers":"SF","Los Angeles Rams":"LAR","New England Patriots":"NE","Green Bay Packers":"GB","Baltimore Ravens":"BAL","Cincinnati Bengals":"CIN","Miami Dolphins":"MIA","New York Jets":"NYJ","Las Vegas Raiders":"LV","Los Angeles Chargers":"LAC","Denver Broncos":"DEN","Seattle Seahawks":"SEA","Arizona Cardinals":"ARI","Atlanta Falcons":"ATL","Carolina Panthers":"CAR","New Orleans Saints":"NO","Tampa Bay Buccaneers":"TB","Chicago Bears":"CHI","Detroit Lions":"DET","Minnesota Vikings":"MIN","Washington Commanders":"WAS","New York Giants":"NYG","Pittsburgh Steelers":"PIT","Cleveland Browns":"CLE","Houston Texans":"HOU","Indianapolis Colts":"IND","Jacksonville Jaguars":"JAX","Tennessee Titans":"TEN"};
+  const map = league === "NBA" ? NBA_MAP : NFL_MAP;
+  return map[name] || name.split(" ").pop().slice(0,3).toUpperCase();
+}
+
+// Convert American moneyline odds to implied probability
+function oddsToProb(american) {
+  if (!american) return null;
+  if (american > 0) return 100 / (american + 100);
+  return Math.abs(american) / (Math.abs(american) + 100);
+}
+
+// ─── INJURY HELPERS ───
+const STATUS_OPTIONS = ["Out","Doubtful","Questionable","Probable"];
+function severityOf(s) { s=s.toLowerCase(); if(s==="out")return 1.0; if(s==="doubtful")return 0.65; if(s==="questionable")return 0.35; if(s==="probable")return 0.1; return 0.25; }
+function statusClass(s) { return s.toLowerCase(); }
+function dotClass(s) { const m={out:"dot-out",doubtful:"dot-doubtful",questionable:"dot-questionable",probable:"dot-probable"}; return m[s.toLowerCase()]||"dot-questionable"; }
+function calcDrag(list) { let t=0; list.forEach(p=>{t+=(p.usage/100)*severityOf(p.status)*15;}); return Math.min(t,14); }
+function getNetInjurySignal(isHome) { const my=isHome?calcDrag(manualInjuries.home):calcDrag(manualInjuries.away); const opp=isHome?calcDrag(manualInjuries.away):calcDrag(manualInjuries.home); return opp-my; }
+
+function renderManualUI() {
+  if (!activeGame) return;
+  renderTeamBlock("home", activeGame.home);
+  renderTeamBlock("away", activeGame.away);
+  updateInjurySummary();
+}
+
+function renderTeamBlock(side, teamName) {
+  const block = document.getElementById(`${side}-inj-block`);
+  const list = manualInjuries[side];
+  block.innerHTML = `
+    <div class="inj-team-label">${teamName}</div>
+    <div class="inj-add-row">
+      <input class="inj-input name" id="${side}-name" placeholder="Player name" onkeydown="if(event.key==='Enter')addPlayer('${side}')">
+      <select class="inj-select" id="${side}-status">${STATUS_OPTIONS.map(s=>`<option value="${s}">${s}</option>`).join("")}</select>
+      <input class="inj-input" id="${side}-usage" type="number" min="5" max="40" value="15" style="width:58px" title="Usage %">
+      <button class="add-btn" onclick="addPlayer('${side}')">+ ADD</button>
+    </div>
+    <div class="preset-hint">Usage %: star ~30 · starter ~20 · role player ~10</div>
+    <div class="inj-list" id="${side}-inj-list">
+      ${list.length===0
+        ? `<div class="no-inj-msg">No injuries entered</div>`
+        : list.map((p,i)=>`<div class="inj-tag">
+            <div class="inj-tag-dot ${dotClass(p.status)}"></div>
+            <span class="inj-tag-name">${p.name}</span>
+            <span class="inj-tag-usage">${p.usage}%</span>
+            <span class="inj-tag-status status-${statusClass(p.status)}">${p.status.toUpperCase()}</span>
+            <button class="remove-btn" onclick="removePlayer('${side}',${i})">×</button>
+          </div>`).join("")
+      }
+    </div>`;
+}
+
+function addPlayer(side) {
+  const name = document.getElementById(`${side}-name`).value.trim();
+  const status = document.getElementById(`${side}-status`).value;
+  const usage = Math.min(40, Math.max(5, parseInt(document.getElementById(`${side}-usage`).value)||15));
+  if (!name) { document.getElementById(`${side}-name`).focus(); return; }
+  manualInjuries[side].push({name, status, usage});
+  document.getElementById(`${side}-name`).value = "";
+  renderTeamBlock(side, side==="home"?activeGame.home:activeGame.away);
+  updateInjurySummary();
+  renderSignalsAndScore();
+}
+
+function removePlayer(side, idx) {
+  manualInjuries[side].splice(idx,1);
+  renderTeamBlock(side, side==="home"?activeGame.home:activeGame.away);
+  updateInjurySummary();
+  renderSignalsAndScore();
+}
+
+function updateInjurySummary() {
+  const hd=calcDrag(manualInjuries.home), ad=calcDrag(manualInjuries.away), net=ad-hd;
+  document.getElementById("home-drag").textContent=`–${hd.toFixed(1)}%`;
+  document.getElementById("away-drag").textContent=`–${ad.toFixed(1)}%`;
+  const el=document.getElementById("net-inj-signal");
+  el.textContent=(net>=0?"+":"")+net.toFixed(1)+"% (home view)";
+  el.style.color=net>1?"var(--dot-green)":net<-1?"var(--dot-red)":"var(--muted)";
+}
+
+function setInjMode(mode) {
+  injuryMode=mode;
+  document.getElementById("mode-manual-btn").classList.toggle("active",mode==="manual");
+  document.getElementById("mode-auto-btn").classList.toggle("active",mode==="auto");
+  document.getElementById("manual-injury-ui").style.display=mode==="manual"?"block":"none";
+  document.getElementById("auto-injury-ui").style.display=mode==="auto"?"block":"none";
+  renderSignalsAndScore();
+}
+
+async function fetchESPN() {
+  if (!activeGame) return;
+  const g = activeGame;
+  const contentEl = document.getElementById("auto-inj-content");
+  contentEl.innerHTML = `<span class="spinner"></span><span style="font-size:11px;color:var(--muted)">Fetching from ESPN...</span>`;
+  const idMap = g.league==="NBA" ? ESPN_NBA : ESPN_NFL;
+  const sport = g.league==="NBA" ? "basketball/nba" : "football/nfl";
+
+  async function getTeam(team) {
+    const key=`${g.league}-${team}`;
+    if (espnCache[key]) return espnCache[key];
+    const id=idMap[team]; if(!id) return null;
+    try {
+      const r=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sport}/teams/${id}/injuries`,{signal:AbortSignal.timeout(7000)});
+      if(!r.ok) return null;
+      const d=await r.json();
+      const list=(d.injuries||d.athletes||[]).map(item=>{
+        const ath=item.athlete||item; const inj=item.injury||item.injuries?.[0]||{};
+        const status=(item.status||inj.status||"").replace(/_/g," ");
+        if(!status||status.toLowerCase()==="active") return null;
+        return {name:ath.displayName||ath.fullName||"Unknown",pos:ath.position?.abbreviation||"",status,detail:inj.longComment||inj.shortComment||inj.type?.description||""};
+      }).filter(Boolean);
+      espnCache[key]=list; return list;
+    } catch(e) { return null; }
+  }
+
+  const [homeList,awayList]=await Promise.all([getTeam(g.home),getTeam(g.away)]);
+
+  const renderET=(team,list)=>{
+    if(!list) return `<div style="font-size:11px;color:var(--dot-amber);margin-bottom:8px">${team}: Could not fetch</div>`;
+    if(list.length===0) return `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">${team}: No injuries reported</div>`;
+    return `<div class="inj-team-block"><div class="inj-team-label">${team} — ${list.length} listed</div>
+      ${list.slice(0,8).map(p=>`<div class="inj-tag">
+        <div class="inj-tag-dot ${dotClass(p.status)}"></div>
+        <span class="inj-tag-usage">${p.pos}</span>
+        <span class="inj-tag-name">${p.name}</span>
+        <span class="inj-tag-status status-${statusClass(p.status)}">${p.status.toUpperCase()}</span>
+        <span class="inj-tag-usage" style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.detail}</span>
+      </div>`).join("")}
+      ${list.length>8?`<div style="font-size:10px;color:var(--muted);padding:4px 0">+${list.length-8} more</div>`:""}
+    </div>`;
+  };
+
+  if (!homeList && !awayList) {
+    contentEl.innerHTML=`<div style="font-size:11px;color:var(--dot-amber)">Could not reach ESPN. Try Manual mode instead.</div>`;
+  } else {
+    contentEl.innerHTML=renderET(g.away,awayList)+`<div style="height:1px;background:var(--border);margin:8px 0"></div>`+renderET(g.home,homeList);
+    const toManual=(list)=>(list||[]).filter(p=>!p.status.toLowerCase().includes("probable")).map(p=>({name:p.name,status:p.status.charAt(0).toUpperCase()+p.status.slice(1).toLowerCase(),usage:15}));
+    manualInjuries.home=toManual(homeList);
+    manualInjuries.away=toManual(awayList);
+    renderSignalsAndScore();
+  }
+}
+
+// ─── PREDICTION MODEL ───
+function predict(game, teamPerspective) {
+  const isHome = teamPerspective==="home";
+  let prob = 50;
+  const signals = [];
+
+  // If we have live moneyline odds, use them as starting baseline
+  if (game.homeOdds && game.awayOdds) {
+    const homeImplied = oddsToProb(game.homeOdds) * 100;
+    const awayImplied = oddsToProb(game.awayOdds) * 100;
+    // Normalize to remove vig
+    const total = homeImplied + awayImplied;
+    const homeTrue = (homeImplied / total) * 100;
+    prob = isHome ? homeTrue : (100 - homeTrue);
+    signals.push({name:"Market consensus (live moneyline)", val:`Implied ${isHome?homeTrue.toFixed(0):((100-homeTrue).toFixed(0))}% · vig removed`, dir:"neu", raw:0});
+  } else {
+    // Fall back to structural signals
+    const homeAdv = game.league==="NBA" ? 3.5 : 3.0;
+    const adv = isHome ? homeAdv : -homeAdv;
+    prob += adv;
+    signals.push({name:"Home court/field advantage", val:`${game.league==="NBA"?"NBA +3.5%":"NFL +3.0%"} baseline`, dir:adv>0?"pos":"neg", raw:adv});
+  }
+
+  if (game.homeSeed && game.awaySeed) {
+    const sd=isHome?(game.awaySeed-game.homeSeed)*1.8:(game.homeSeed-game.awaySeed)*1.8;
+    prob+=sd;
+    signals.push({name:"Seeding differential", val:`${isHome?game.home:game.away} #${isHome?game.homeSeed:game.awaySeed} vs ${isHome?game.away:game.home} #${isHome?game.awaySeed:game.homeSeed}`, dir:sd>0?"pos":sd<0?"neg":"neu", raw:sd});
+  }
+
+  if (game.homeWins!==null && game.awayWins!==null) {
+    const mw=isHome?game.homeWins:game.awayWins, tw=isHome?game.awayWins:game.homeWins;
+    const sd=(mw-tw)*4.5; prob+=sd;
+    signals.push({name:"Series momentum", val:`${mw}–${tw} (selected vs opponent)`, dir:sd>0?"pos":sd<0?"neg":"neu", raw:sd});
+  }
+
+  const rtgD=isHome?(game.homeRtg-game.awayRtg)*1.2:(game.awayRtg-game.homeRtg)*1.2;
+  prob+=rtgD;
+  signals.push({name:"Offensive rating edge", val:`${(isHome?game.homeRtg:game.awayRtg).toFixed(1)} vs ${(isHome?game.awayRtg:game.homeRtg).toFixed(1)} pts/100`, dir:rtgD>0?"pos":rtgD<0?"neg":"neu", raw:rtgD});
+
+  const ms=isHome?game.homeStreak:game.awayStreak, ts=isHome?game.awayStreak:game.homeStreak;
+  const sv=ms*1.5-ts*1.0; prob+=sv;
+  signals.push({name:"Recent form", val:`Selected +${ms} wins / Opponent +${ts} wins`, dir:sv>0?"pos":sv<0?"neg":"neu", raw:sv});
+
+  const rp=(game.rivalry-0.5)*3; prob-=rp;
+  signals.push({name:"Rivalry / upset factor", val:game.rivalry>=0.8?"High — compresses edge":game.rivalry>=0.5?"Medium":"Low", dir:rp>1?"neg":rp<-1?"pos":"neu", raw:-rp});
+
+  const net=getNetInjurySignal(isHome); prob+=net;
+  const myInjs=isHome?manualInjuries.home:manualInjuries.away;
+  const oppInjs=isHome?manualInjuries.away:manualInjuries.home;
+  const myOut=myInjs.filter(p=>p.status.toLowerCase()==="out").length;
+  const oppOut=oppInjs.filter(p=>p.status.toLowerCase()==="out").length;
+  const noData=myInjs.length===0&&oppInjs.length===0;
+  signals.push({name:"Injury report", val:noData?"No injuries entered — add above":`Selected: ${myOut} out · Opponent: ${oppOut} out`, dir:noData?"warn":net>1?"pos":net<-1?"neg":"neu", raw:net, isInj:true});
+
+  prob=Math.min(92,Math.max(8,Math.round(prob)));
+  return {prob, signals};
+}
+
+// ─── RENDER GAMES LIST ───
+function setFilter(f, btn) {
+  filter=f;
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  renderGames();
+}
+
+function renderGames() {
+  const games=GAMES.filter(g=>filter==="all"||g.league===filter);
+  if (games.length===0) {
+    document.getElementById("games-list").innerHTML=`<div style="padding:1rem;font-size:11px;color:var(--muted)">No ${filter==="all"?"":filter+" "}games found.</div>`;
+    return;
+  }
+  document.getElementById("games-list").innerHTML=games.map(g=>{
+    const {prob}=predict(g,"home");
+    const kalshiPrice=g.homeOdds?Math.round(oddsToProb(g.homeOdds)*100):null;
+    return `<div class="game-card${activeGame&&activeGame.id===g.id?" active":""}" onclick="selectGame('${g.id}')">
+      <div class="card-top">
+        <span class="league-pill ${g.league.toLowerCase()}">${g.league}</span>
+        <span class="card-time">${g.time.split("·")[0].trim()}</span>
+      </div>
+      <div class="card-matchup">${g.away} <span style="color:var(--muted);font-weight:400">@</span> ${g.home}</div>
+      <div class="card-label">${g.time}</div>
+      <div class="mini-scoreboard">
+        <span class="mini-team">${g.away}</span>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${100-prob}%;background:var(--dot-red)"></div></div>
+        <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${prob}%;background:var(--dot-amber)"></div></div>
+        <span class="mini-pct">${prob}%</span>
+        <span class="mini-team right">${g.home}</span>
+      </div>
+      ${kalshiPrice?`<div style="margin-top:6px"><span class="kalshi-pill">KALSHI ~${kalshiPrice}¢</span></div>`:""}
+    </div>`;
+  }).join("");
+}
+
+// ─── SELECT GAME ───
+function selectGame(id) {
+  activeGame=GAMES.find(g=>g.id===id);
+  selectedTeam="home"; activePrice=null;
+  manualInjuries={home:[],away:[]};
+  document.getElementById("custom-price").value="";
+  document.getElementById("auto-inj-content").innerHTML=`<div style="font-size:11px;color:var(--muted)">Click Fetch to pull live data from ESPN.</div>`;
+  renderGames();
+  document.getElementById("empty-state").style.display="none";
+  document.getElementById("result-view").style.display="block";
+  document.getElementById("res-matchup").textContent=`${activeGame.away} @ ${activeGame.home}`;
+  document.getElementById("res-sub").textContent=`${activeGame.league} · ${activeGame.time}`;
+  document.getElementById("note-strip").textContent=activeGame.note;
+  document.getElementById("team-toggle").innerHTML=
+    `<button class="toggle-btn active" onclick="switchTeam('home',this)">${activeGame.home}</button>
+     <button class="toggle-btn" onclick="switchTeam('away',this)">${activeGame.away}</button>`;
+  renderManualUI();
+
+  // Auto-set Kalshi price from live odds
+  if (activeGame.homeOdds) {
+    const homeImplied=Math.round(oddsToProb(activeGame.homeOdds)*100);
+    activePrice=homeImplied;
+  }
+  renderSignalsAndScore();
+}
+
+// ─── RENDER SIGNALS + SCORE ───
+function renderSignalsAndScore() {
+  if (!activeGame) return;
+  const g=activeGame;
+  const {prob,signals}=predict(g,selectedTeam);
+  const myTeam=selectedTeam==="home"?g.home:g.away;
+
+  document.getElementById("prob-win").textContent=prob+"%";
+  document.getElementById("prob-win-team").textContent=myTeam+" WINS";
+  document.getElementById("prob-lose").textContent=(100-prob)+"%";
+  document.getElementById("prob-lose-team").textContent=myTeam+" LOSES";
+
+  const infoItems=[
+    {label:"LEAGUE",val:g.league},
+    {label:"DATE",val:g.time.split("·")[0].trim()},
+    g.homeWins!==null?{label:"SERIES",val:`${g.homeWins}-${g.awayWins}`}:{label:"TIME",val:g.time.split("·")[1]?.trim()||"TBD"},
+    {label:"EDGE",val:`${prob>50?"+":""}${prob-50}%`}
+  ];
+  document.getElementById("info-strip").innerHTML=infoItems.map(i=>
+    `<div class="info-cell"><div class="info-cell-label">${i.label}</div><div class="info-cell-val">${i.val}</div></div>`
+  ).join("");
+
+  const maxRaw=Math.max(...signals.map(s=>Math.abs(s.raw)),1);
+  document.getElementById("signals-list").innerHTML=signals.map(s=>{
+    const pct=Math.round(Math.abs(s.raw)/maxRaw*100);
+    const d=s.isInj&&s.dir==="warn"?"warn":s.dir;
+    return `<div class="signal-row">
+      <div class="sig-led ${d}"></div>
+      <div class="sig-content"><div class="sig-name">${s.name}</div><div class="sig-val">${s.val}</div></div>
+      <div class="sig-bar-wrap"><div class="sig-bar"><div class="sig-bar-fill fill-${d}" style="width:${pct}%"></div></div></div>
+      <div class="sig-impact ${d}">${s.raw>=0?"+":""}${s.raw.toFixed(1)}%</div>
+    </div>`;
+  }).join("");
+
+  // Kalshi live price row
+  const kalshiRow=document.getElementById("kalshi-live-row");
+  if (g.homeOdds) {
+    const homeImp=Math.round(oddsToProb(selectedTeam==="home"?g.homeOdds:g.awayOdds)*100);
+    kalshiRow.innerHTML=`<div class="kalshi-price-row">
+      <span class="kalshi-price-label">Live market price (${myTeam} YES):</span>
+      <span class="kalshi-live-price">${homeImp}¢</span>
+      <span class="kalshi-price-tag">via DraftKings proxy · auto-applied</span>
+    </div>`;
+    if (!activePrice || activePrice === Math.round(oddsToProb(selectedTeam==="home"?g.awayOdds:g.homeOdds)*100)) {
+      activePrice = homeImp;
+    }
+  } else { kalshiRow.innerHTML=""; }
+
+  const near=[10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90].filter(p=>Math.abs(p-prob)<=22);
+  document.getElementById("price-pills").innerHTML=near.map(p=>{
+    const isLive=g.homeOdds&&Math.abs(p-Math.round(oddsToProb(selectedTeam==="home"?g.homeOdds:g.awayOdds)*100))===0;
+    return `<button class="price-pill${activePrice===p?" sel":""}${isLive?" kalshi-auto":""}" onclick="setPillPrice(${p})">${p}¢${isLive?" ★":""}</button>`;
+  }).join("");
+
+  updateEV(prob);
+  renderGames();
+}
+
+function switchTeam(t, btn) {
+  selectedTeam=t; activePrice=null;
+  document.getElementById("custom-price").value="";
+  document.querySelectorAll(".toggle-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  // Reset live price for new perspective
+  if (activeGame?.homeOdds) {
+    activePrice=Math.round(oddsToProb(t==="home"?activeGame.homeOdds:activeGame.awayOdds)*100);
+  }
+  renderSignalsAndScore();
+}
+
+function setPillPrice(p) {
+  activePrice=p;
+  document.getElementById("custom-price").value="";
+  document.querySelectorAll(".price-pill").forEach(el=>el.classList.toggle("sel",parseInt(el.textContent)===p));
+  updateEV(predict(activeGame,selectedTeam).prob);
+}
+
+function onCustomPrice() {
+  const val=parseInt(document.getElementById("custom-price").value);
+  if(val>=1&&val<=99){activePrice=val;document.querySelectorAll(".price-pill").forEach(el=>el.classList.remove("sel"));updateEV(predict(activeGame,selectedTeam).prob);}
+}
+
+function updateEV(prob) {
+  if (!activePrice) {
+    ["ev-val","edge-val","verdict-val"].forEach(id=>{const el=document.getElementById(id);el.textContent="—";el.className="ev-cell-val ev-neu";});
+    document.getElementById("verdict-sub").textContent="";
+    document.getElementById("verdict-fill").style.cssText="width:50%;background:var(--border2)";
+    return;
+  }
+  const p=prob/100,q=activePrice/100;
+  const ev=p*(1-q)-(1-p)*q;
+  const evC=Math.round(ev*100),edge=Math.round((p-q)*100);
+  const evEl=document.getElementById("ev-val");
+  evEl.textContent=(evC>=0?"+":"")+evC+"¢"; evEl.className="ev-cell-val "+(evC>4?"ev-pos":evC<-4?"ev-neg":"ev-neu");
+  const edEl=document.getElementById("edge-val");
+  edEl.textContent=(edge>=0?"+":"")+edge+"%"; edEl.className="ev-cell-val "+(edge>4?"ev-pos":edge<-4?"ev-neg":"ev-neu");
+  let v,vc,fw,fc,sub;
+  if(edge>10){v="STRONG YES";vc="ev-pos";fw=95;fc="var(--dot-green)";sub=`${edge}% EDGE IN YOUR FAVOR`;}
+  else if(edge>4){v="LEAN YES";vc="ev-pos";fw=72;fc="var(--dot-green)";sub=`${edge}% EDGE IN YOUR FAVOR`;}
+  else if(edge>=-4){v="FAIR VALUE";vc="ev-neu";fw=50;fc="var(--dot-amber)";sub="NEAR MARKET PRICE";}
+  else if(edge>=-10){v="LEAN NO";vc="ev-neg";fw=28;fc="var(--dot-red)";sub=`${Math.abs(edge)}% EDGE AGAINST YOU`;}
+  else{v="STRONG NO";vc="ev-neg";fw=5;fc="var(--dot-red)";sub=`${Math.abs(edge)}% EDGE AGAINST YOU`;}
+  const vEl=document.getElementById("verdict-val");
+  vEl.textContent=v; vEl.className="ev-cell-val "+vc;
+  document.getElementById("verdict-fill").style.cssText=`width:${fw}%;background:${fc}`;
+  const sEl=document.getElementById("verdict-sub");
+  sEl.textContent=sub; sEl.style.color=edge>=0?"var(--dot-green)":"var(--dot-red)";
+}
+
+// Kick off
+loadGames();
+</script>
+</body>
+</html>
