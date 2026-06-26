@@ -939,10 +939,11 @@ function updateEV(prob) {
 (function(){
   const canvas = document.getElementById('rain-canvas');
   const ctx = canvas.getContext('2d');
-  const NBA_EMOJIS = ['🏀','🏀','🏀','🏀','🏀','🏀'];
-  const NFL_EMOJIS = ['🏈','🏈','🏈','🏈','🏈','🏈'];
+  const NBA_EMOJIS = ['🏀'];
+  const NFL_EMOJIS = ['🏈'];
+  const ALL_EMOJIS = ['🏀','🏈','🏆','🥇','🎯','🎽','👟','🏟️','📊','💰','🔥','🏀','🏈','🏆','🥇','🎯','🎽','👟','🔥','💰'];
   let drops = [];
-  let currentEmojis = [...NBA_EMOJIS, ...NFL_EMOJIS];
+  let currentEmojis = ALL_EMOJIS;
 
   function resize(){
     canvas.width = window.innerWidth;
@@ -951,31 +952,34 @@ function updateEV(prob) {
   resize();
   window.addEventListener('resize', resize);
 
-  function spawnDrop(){
-    const emoji = currentEmojis[Math.floor(Math.random()*currentEmojis.length)];
+  function randomEmoji(){ return currentEmojis[Math.floor(Math.random()*currentEmojis.length)]; }
+
+  function spawnDrop(startY){
     drops.push({
       x: Math.random() * canvas.width,
-      y: -40,
-      size: 16 + Math.random() * 20,
-      speed: 0.4 + Math.random() * 0.8,
-      opacity: 0.04 + Math.random() * 0.1,
+      y: startY !== undefined ? startY : -40,
+      size: 16 + Math.random() * 22,
+      speed: 0.4 + Math.random() * 0.9,
+      opacity: 0.05 + Math.random() * 0.12,
       wobble: Math.random() * Math.PI * 2,
-      wobbleSpeed: 0.005 + Math.random() * 0.01,
-      emoji
+      wobbleSpeed: 0.005 + Math.random() * 0.012,
+      emoji: randomEmoji(),
+      targetEmoji: null,
+      morphProgress: 1  // 1 = fully settled, 0 = just started morphing
     });
   }
 
-  // Spawn initial drops staggered
-  for(let i=0;i<40;i++){
-    spawnDrop();
-    drops[drops.length-1].y = Math.random() * window.innerHeight;
+  function initDrops(){
+    drops = [];
+    for(let i=0;i<55;i++) spawnDrop(Math.random()*canvas.height);
   }
+
+  initDrops();
 
   let frame = 0;
   function animate(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    // spawn new drops periodically
-    if(frame % 18 === 0) spawnDrop();
+    if(frame % 16 === 0) spawnDrop();
     frame++;
 
     drops = drops.filter(d => d.y < canvas.height + 60);
@@ -983,20 +987,55 @@ function updateEV(prob) {
       d.y += d.speed;
       d.wobble += d.wobbleSpeed;
       d.x += Math.sin(d.wobble) * 0.4;
-      ctx.globalAlpha = d.opacity;
-      ctx.font = `${d.size}px serif`;
-      ctx.fillText(d.emoji, d.x, d.y);
+
+      if(d.targetEmoji && d.morphProgress < 1){
+        // Morph: fade out old, fade in new
+        d.morphProgress = Math.min(1, d.morphProgress + 0.035);
+        const oldOpacity = d.opacity * (1 - d.morphProgress);
+        const newOpacity = d.opacity * d.morphProgress;
+
+        // Draw old emoji fading out
+        ctx.globalAlpha = oldOpacity;
+        ctx.font = `${d.size}px serif`;
+        ctx.fillText(d.emoji, d.x, d.y);
+
+        // Draw new emoji fading in, slightly scaled up then back
+        const scale = 1 + Math.sin(d.morphProgress * Math.PI) * 0.3;
+        ctx.globalAlpha = newOpacity;
+        ctx.save();
+        ctx.translate(d.x + d.size/2, d.y - d.size/2);
+        ctx.scale(scale, scale);
+        ctx.fillText(d.targetEmoji, -d.size/2, d.size/2);
+        ctx.restore();
+
+        if(d.morphProgress >= 1){
+          d.emoji = d.targetEmoji;
+          d.targetEmoji = null;
+        }
+      } else {
+        ctx.globalAlpha = d.opacity;
+        ctx.font = `${d.size}px serif`;
+        ctx.fillText(d.emoji, d.x, d.y);
+      }
     });
     ctx.globalAlpha = 1;
     requestAnimationFrame(animate);
   }
   animate();
 
-  // Update emoji mix when filter changes
   window.updateRainEmojis = function(league){
     if(league==='NBA') currentEmojis = NBA_EMOJIS;
     else if(league==='NFL') currentEmojis = NFL_EMOJIS;
-    else currentEmojis = [...NBA_EMOJIS,...NFL_EMOJIS];
+    else currentEmojis = ALL_EMOJIS;
+
+    // Assign target emojis to all existing drops — they'll morph smoothly
+    drops.forEach(d => {
+      const next = randomEmoji();
+      if(next !== d.emoji){
+        d.targetEmoji = next;
+        d.morphProgress = 0;
+      }
+    });
   };
 })();
 
