@@ -88,6 +88,8 @@ header{
 .league-pill{font-family:'Orbitron',monospace;font-size:8px;letter-spacing:0.15em;padding:2px 8px;border-radius:2px;font-weight:700}
 .league-pill.nba{color:#fff;background:#1d428a;border:1px solid #2a5abf;text-shadow:none}
 .league-pill.nfl{color:#fff;background:#013369;border:1px solid #d50a0a;text-shadow:none}
+.league-pill.mlb{color:#fff;background:#002d72;border:1px solid #e31937;text-shadow:none}
+.league-pill.ufc{color:#fff;background:#c8102e;border:1px solid #ff0000;text-shadow:none}
 .card-time{font-size:10px;color:var(--muted)}
 .card-matchup{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:#fff;letter-spacing:0.05em;margin-bottom:2px}
 .card-label{font-size:10px;color:var(--muted);margin-bottom:10px}
@@ -342,6 +344,8 @@ header{
         <button class="filter-btn active" onclick="setFilter('all',this)">ALL</button>
         <button class="filter-btn" onclick="setFilter('NBA',this)">NBA</button>
         <button class="filter-btn" onclick="setFilter('NFL',this)">NFL</button>
+        <button class="filter-btn" onclick="setFilter('MLB',this)">MLB</button>
+        <button class="filter-btn" onclick="setFilter('UFC',this)">UFC</button>
       </div>
     </div>
     <div class="games-list" id="games-list">
@@ -428,7 +432,7 @@ header{
 // ─────────────────────────────────────────────
 // CONFIG — paste your key from the-odds-api.com
 // ─────────────────────────────────────────────
-const ODDS_API_KEY = "9a27f861ca25a79d6d545ebac5a26d4c";
+const ODDS_API_KEY = "YOUR_ODDS_API_KEY";
 const ODDS_BASE    = "https://api.the-odds-api.com/v4";
 
 // ESPN team ID maps for injury fetching
@@ -483,7 +487,7 @@ async function loadGames() {
   }
 
   try {
-    const sports = ["basketball_nba","americanfootball_nfl"];
+    const sports = ["basketball_nba","americanfootball_nfl","baseball_mlb","mma_mixed_martial_arts"];
     const allGames = [];
 
     for (const sport of sports) {
@@ -493,7 +497,10 @@ async function loadGames() {
       const data = await resp.json();
 
       data.forEach(event => {
-        const league = sport === "basketball_nba" ? "NBA" : "NFL";
+        let league = "NBA";
+        if(sport==="americanfootball_nfl") league="NFL";
+        else if(sport==="baseball_mlb") league="MLB";
+        else if(sport==="mma_mixed_martial_arts") league="UFC";
         const home = normalizeTeam(event.home_team, league);
         const away = normalizeTeam(event.away_team, league);
         const commence = new Date(event.commence_time);
@@ -516,7 +523,7 @@ async function loadGames() {
           id: event.id,
           league,
           home, away,
-          label: league === "NBA" ? "NBA GAME" : "NFL GAME",
+          label: league==="NBA"?"NBA GAME":league==="NFL"?"NFL GAME":league==="MLB"?"MLB GAME":"UFC BOUT",
           time: commence.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + " · " + commence.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}),
           commence,
           // Base model params — will be enriched from odds
@@ -556,8 +563,12 @@ async function loadGames() {
 function normalizeTeam(name, league) {
   const NBA_MAP = {"Oklahoma City Thunder":"OKC","San Antonio Spurs":"SAS","New York Knicks":"NYK","Cleveland Cavaliers":"CLE","Los Angeles Lakers":"LAL","Boston Celtics":"BOS","Miami Heat":"MIA","Milwaukee Bucks":"MIL","Philadelphia 76ers":"PHI","Minnesota Timberwolves":"MIN","Denver Nuggets":"DEN","Phoenix Suns":"PHX","Dallas Mavericks":"DAL","Los Angeles Clippers":"LAC","Golden State Warriors":"GSW","Houston Rockets":"HOU","Memphis Grizzlies":"MEM","Sacramento Kings":"SAC","Indiana Pacers":"IND","Atlanta Hawks":"ATL","Chicago Bulls":"CHI","Detroit Pistons":"DET","Orlando Magic":"ORL","Washington Wizards":"WAS","Toronto Raptors":"TOR","Brooklyn Nets":"BKN","Charlotte Hornets":"CHA","New Orleans Pelicans":"NOP","Utah Jazz":"UTA","Portland Trail Blazers":"POR"};
   const NFL_MAP = {"Kansas City Chiefs":"KC","Buffalo Bills":"BUF","Philadelphia Eagles":"PHI","Dallas Cowboys":"DAL","San Francisco 49ers":"SF","Los Angeles Rams":"LAR","New England Patriots":"NE","Green Bay Packers":"GB","Baltimore Ravens":"BAL","Cincinnati Bengals":"CIN","Miami Dolphins":"MIA","New York Jets":"NYJ","Las Vegas Raiders":"LV","Los Angeles Chargers":"LAC","Denver Broncos":"DEN","Seattle Seahawks":"SEA","Arizona Cardinals":"ARI","Atlanta Falcons":"ATL","Carolina Panthers":"CAR","New Orleans Saints":"NO","Tampa Bay Buccaneers":"TB","Chicago Bears":"CHI","Detroit Lions":"DET","Minnesota Vikings":"MIN","Washington Commanders":"WAS","New York Giants":"NYG","Pittsburgh Steelers":"PIT","Cleveland Browns":"CLE","Houston Texans":"HOU","Indianapolis Colts":"IND","Jacksonville Jaguars":"JAX","Tennessee Titans":"TEN"};
-  const map = league === "NBA" ? NBA_MAP : NFL_MAP;
-  return map[name] || name.split(" ").pop().slice(0,3).toUpperCase();
+  const MLB_MAP = {"New York Yankees":"NYY","Los Angeles Dodgers":"LAD","Boston Red Sox":"BOS","Chicago Cubs":"CHC","San Francisco Giants":"SF","Houston Astros":"HOU","Atlanta Braves":"ATL","New York Mets":"NYM","Philadelphia Phillies":"PHI","St. Louis Cardinals":"STL","Chicago White Sox":"CWS","Los Angeles Angels":"LAA","Seattle Mariners":"SEA","San Diego Padres":"SD","Minnesota Twins":"MIN","Toronto Blue Jays":"TOR","Cleveland Guardians":"CLE","Tampa Bay Rays":"TB","Baltimore Orioles":"BAL","Detroit Tigers":"DET","Miami Marlins":"MIA","Colorado Rockies":"COL","Arizona Diamondbacks":"ARI","Milwaukee Brewers":"MIL","Cincinnati Reds":"CIN","Pittsburgh Pirates":"PIT","Kansas City Royals":"KC","Texas Rangers":"TEX","Oakland Athletics":"OAK","Washington Nationals":"WAS"};
+  if(league==="NBA") return NBA_MAP[name]||name.split(" ").pop().slice(0,3).toUpperCase();
+  if(league==="NFL") return NFL_MAP[name]||name.split(" ").pop().slice(0,3).toUpperCase();
+  if(league==="MLB") return MLB_MAP[name]||name.split(" ").pop().slice(0,3).toUpperCase();
+  // UFC — just use fighter last name
+  return name.split(" ").pop().slice(0,8).toUpperCase();
 }
 
 // Convert American moneyline odds to implied probability
@@ -941,7 +952,9 @@ function updateEV(prob) {
   const ctx = canvas.getContext('2d');
   const NBA_EMOJIS = ['🏀'];
   const NFL_EMOJIS = ['🏈'];
-  const ALL_EMOJIS = ['🏀','🏈','🏆','🥇','🎯','🎽','👟','🏟️','📊','💰','🔥','🏀','🏈','🏆','🥇','🎯','🎽','👟','🔥','💰'];
+  const MLB_EMOJIS = ['⚾'];
+  const UFC_EMOJIS = ['🥊'];
+  const ALL_EMOJIS = ['🏀','🏈','⚾','🥊','🏆','🥇','🎯','🎽','👟','🏟️','📊','💰','🔥','🏀','🏈','⚾','🥊','🏆','🥇','🎯','🎽','👟','🔥','💰'];
   let drops = [];
   let currentEmojis = ALL_EMOJIS;
 
@@ -1026,6 +1039,8 @@ function updateEV(prob) {
   window.updateRainEmojis = function(league){
     if(league==='NBA') currentEmojis = NBA_EMOJIS;
     else if(league==='NFL') currentEmojis = NFL_EMOJIS;
+    else if(league==='MLB') currentEmojis = MLB_EMOJIS;
+    else if(league==='UFC') currentEmojis = UFC_EMOJIS;
     else currentEmojis = ALL_EMOJIS;
 
     // Assign target emojis to all existing drops — they'll morph smoothly
